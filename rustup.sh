@@ -79,9 +79,15 @@ set_globals() {
     dist_server="${RUSTUP_DIST_SERVER-$default_dist_server}"
     using_insecure_dist_server=false
 
+    # Check to see if GNUPG version 2 is installed, falling back to using version 1 by default
+    gpg_exe=gpg
+    if command -v gpg2 > /dev/null 2>&1; then
+        gpg_exe=gpg2
+    fi
+
     # Disable https if we can gpg because cloudfront often gets our files out of sync
     if [ "$dist_server" = "$default_dist_server" ]; then
-	if command -v gpg > /dev/null 2>&1; then
+	if command -v "$gpg_exe" > /dev/null 2>&1; then
 	    dist_server="$insecure_dist_server"
 	    using_insecure_dist_server=true
 	fi
@@ -900,7 +906,7 @@ get_architecture() {
 	fi
     fi
 
-    local _arch="$_cputype-$_ostype" 
+    local _arch="$_cputype-$_ostype"
     verbose_say "architecture is $_arch"
 
     RETVAL="$_arch"
@@ -910,7 +916,7 @@ check_sig() {
     local _sig_file="$1"
     local _quiet="$2"
 
-    if ! command -v gpg > /dev/null 2>&1; then
+    if ! command -v "$gpg_exe" > /dev/null 2>&1; then
 	return
     fi
 
@@ -924,14 +930,14 @@ check_sig() {
 
     # Convert the armored key to .gpg format so it works with --keyring
     verbose_say "converting armored key to gpg"
-    run gpg --dearmor "$_workdir/key.asc"
+    run "$gpg_exe" --no-permission-warning --dearmor "$_workdir/key.asc"
     if [ $? != 0 ]; then
 	ignore rm -R "$_workdir"
 	return 1
     fi
 
     verbose_say "verifying signature '$_sig_file'"
-    local _output="$(gpg --keyring "$_workdir/key.asc.gpg" --verify "$_sig_file" 2>&1)"
+    local _output="$("$gpg_exe" --no-permission-warning --keyring "$_workdir/key.asc.gpg" --verify "$_sig_file" 2>&1)"
     if [ $? != 0 ]; then
 	ignore echo "$_output"
 	say_err "signature verification failed"
