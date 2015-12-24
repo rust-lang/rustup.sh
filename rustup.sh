@@ -1215,7 +1215,7 @@ download_file_and_sig() {
     local _remote_sig="$_remote_name.asc"
     local _local_sig="$_local_name.asc"
 
-    # downloader maybe does not seem to work when the file already exists at 100%,
+    # curl -C does not seem to work when the file already exists at 100%,
     # so just delete it and redownload.
     if [ -e "$_local_sig" ]; then
 	run rm "$_local_sig"
@@ -1232,8 +1232,8 @@ download_file_and_sig() {
 	return 1
     fi
 
-    # Again, because downloader doesn't like a complete file, short circuit
-    # downloader by checking the sum.
+    # Again, because curl -C doesn't like a complete file, short circuit
+    # curl by checking the sum.
     local _local_sums_file="$_local_dirname/$_remote_basename.sha256"
     # Throwing away error text since this error is expected.
     check_sums "$_local_sums_file" > /dev/null 2>&1
@@ -1244,9 +1244,9 @@ download_file_and_sig() {
     verbose_say "downloading '$_remote_name' to '$_local_name'"
     # Invoke downloader in a way that will resume if necessary
     if [ "$_quiet" = false ]; then
-	(run cd "$_local_dirname" && run_downloader "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name" "$_quiet")
     else
-	(run cd "$_local_dirname" && run_downloader "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name" "$_quiet")
     fi
     if [ $? != 0 ]; then
 	say_err "couldn't download '$_remote_name'"
@@ -1426,7 +1426,9 @@ assert_cmds() {
     need_cmd id
 }
 
-check_download_cmd() {
+run_downloader() {
+    local download_from_url=$1
+    local _quiet=$2
 
     if [ "$_quiet" = false ]; then
         default_download_exe="curl -# -C - -f -O"
@@ -1435,11 +1437,7 @@ check_download_cmd() {
     fi
 
     download_exe=${RUSTUP_DOWNLOADER-$default_download_exe}
-}
 
-run_downloader() {
-    check_download_cmd
-    download_from_url=$1
     echo $download_from_url|grep -q -- "^http"
     if [ $? -eq 0 ]; then
         run $download_exe $download_from_url
