@@ -55,6 +55,13 @@ Install explicit versions.
 rustup.sh --revision=1.0.0-beta
 ```
 
+Using custom downloader
+
+```
+export RUSTUP_DOWNLOADER="aria2c -c -j 10 -x 10 -s 10 --min-split-size=1M --connect-timeout=600 --timeout=600 -m0" 
+export RUSTUP_DOWNLOADER="axel -n 5 --alternate" 
+```
+
 ## Future work
 
 * GC old temp and cache files.
