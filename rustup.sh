@@ -1180,7 +1180,7 @@ download_checksum_for() {
     verbose_say "download work dir: $_workdir"
 
     verbose_say "downloading '$_remote_sums' to '$_workdir'"
-    (run cd "$_workdir" && run curl -s -f -O "$_remote_sums")
+    (run cd "$_workdir" && run_downloader "$_remote_sums")
     if [ $? != 0 ]; then
 	say_err "couldn't download checksum file '$_remote_sums'"
 	ignore rm -R "$_workdir"
@@ -1215,7 +1215,7 @@ download_file_and_sig() {
     local _remote_sig="$_remote_name.asc"
     local _local_sig="$_local_name.asc"
 
-    # curl -C does not seem to work when the file already exists at 100%,
+    # downloader maybe does not seem to work when the file already exists at 100%,
     # so just delete it and redownload.
     if [ -e "$_local_sig" ]; then
 	run rm "$_local_sig"
@@ -1226,14 +1226,14 @@ download_file_and_sig() {
     fi
 
     verbose_say "downloading '$_remote_sig' to '$_local_sig'"
-    (run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_sig")
+    (run cd "$_local_dirname" && run_downloader "$_remote_sig")
     if [ $? != 0 ]; then
 	say_err "couldn't download signature file '$_remote_sig'"
 	return 1
     fi
 
-    # Again, because curl -C doesn't like a complete file, short circuit
-    # curl by checking the sum.
+    # Again, because downloader doesn't like a complete file, short circuit
+    # downloader by checking the sum.
     local _local_sums_file="$_local_dirname/$_remote_basename.sha256"
     # Throwing away error text since this error is expected.
     check_sums "$_local_sums_file" > /dev/null 2>&1
@@ -1242,11 +1242,11 @@ download_file_and_sig() {
     fi
 
     verbose_say "downloading '$_remote_name' to '$_local_name'"
-    # Invoke curl in a way that will resume if necessary
+    # Invoke downloader in a way that will resume if necessary
     if [ "$_quiet" = false ]; then
-	(run cd "$_local_dirname" && run curl -# -C - -f -O "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name")
     else
-	(run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name")
     fi
     if [ $? != 0 ]; then
 	say_err "couldn't download '$_remote_name'"
@@ -1405,7 +1405,6 @@ assert_cmds() {
     need_cmd basename
     need_cmd mkdir
     need_cmd cat
-    need_cmd curl
     need_cmd mktemp
     need_cmd rm
     need_cmd egrep
@@ -1424,6 +1423,33 @@ assert_cmds() {
     need_cmd printf
     need_cmd touch
     need_cmd id
+}
+
+check_download_cmd() {
+    if command -v aria2c > /dev/null 2>&1; then
+        checked_download_exe="aria2c -c -j 10 -x 10 -s 10 --min-split-size=1M --connect-timeout=600 --timeout=600 -m0"
+    elif command -v axel > /dev/null 2>&1; then
+        checked_download_exe="axel -n 5 --alternate"
+    elif command -v wget > /dev/null 2>&1; then
+        checked_download_exe="wget -c"
+    elif command -v curl > /dev/null 2>&1; then
+        if [ "$_quiet" = false ]; then
+            checked_download_exe="curl -# -C - -f -O"
+        else
+            checked_download_exe="curl -s -C - -f -O"
+        fi
+    fi
+
+    download_exe=${RUSTUP_DOWNLOADER-"$checked_download_exe"}
+    verbose_say "downlaoder is '$checked_download_exe'"
+    if [ ! -n "${download_exe-}" ]; then
+        err "not found any downloader: axel aria2c wget curl, or RUSTUP_DOWNLOADER"
+    fi
+}
+
+run_downloader() {
+    check_download_cmd
+    run $download_exe $1
 }
 
 main "$@"
