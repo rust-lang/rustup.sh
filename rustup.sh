@@ -1443,7 +1443,7 @@ check_download_cmd() {
     fi
 
     download_exe=${RUSTUP_DOWNLOADER-${checked_download_exe-$default_download_exe}}
-    verbose_say "downlaoder is '$checked_download_exe'"
+    verbose_say "downlaoder is '$download_exe'"
     if [ ! -n "${download_exe-}" ]; then
         err "not found any downloader: axel aria2c wget curl, or RUSTUP_DOWNLOADER"
     fi
