@@ -1180,7 +1180,7 @@ download_checksum_for() {
     verbose_say "download work dir: $_workdir"
 
     verbose_say "downloading '$_remote_sums' to '$_workdir'"
-    (run cd "$_workdir" && run_downloader "$_remote_sums")
+    (run cd "$_workdir" && run curl -s -f -O "$_remote_sums")
     if [ $? != 0 ]; then
 	say_err "couldn't download checksum file '$_remote_sums'"
 	ignore rm -R "$_workdir"
@@ -1226,7 +1226,7 @@ download_file_and_sig() {
     fi
 
     verbose_say "downloading '$_remote_sig' to '$_local_sig'"
-    (run cd "$_local_dirname" && run_downloader "$_remote_sig")
+    (run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_sig")
     if [ $? != 0 ]; then
 	say_err "couldn't download signature file '$_remote_sig'"
 	return 1
@@ -1434,19 +1434,7 @@ check_download_cmd() {
         default_download_exe="curl -s -C - -f -O"
     fi
 
-    if command -v aria2c > /dev/null 2>&1; then
-        checked_download_exe="aria2c -c -j 10 -x 10 -s 10 --min-split-size=1M --connect-timeout=600 --timeout=600 -m0"
-    elif command -v axel > /dev/null 2>&1; then
-        checked_download_exe="axel -n 5 --alternate"
-    elif command -v wget > /dev/null 2>&1; then
-        checked_download_exe="wget -c"
-    fi
-
-    download_exe=${RUSTUP_DOWNLOADER-${checked_download_exe-$default_download_exe}}
-    verbose_say "downlaoder is '$download_exe'"
-    if [ ! -n "${download_exe-}" ]; then
-        err "not found any downloader: axel aria2c wget curl, or RUSTUP_DOWNLOADER"
-    fi
+    download_exe=${RUSTUP_DOWNLOADER-$default_download_exe}
 }
 
 run_downloader() {
