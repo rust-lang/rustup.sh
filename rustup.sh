@@ -1405,6 +1405,7 @@ assert_cmds() {
     need_cmd basename
     need_cmd mkdir
     need_cmd cat
+    need_cmd curl
     need_cmd mktemp
     need_cmd rm
     need_cmd egrep
@@ -1426,21 +1427,22 @@ assert_cmds() {
 }
 
 check_download_cmd() {
+
+    if [ "$_quiet" = false ]; then
+        default_download_exe="curl -# -C - -f -O"
+    else
+        default_download_exe="curl -s -C - -f -O"
+    fi
+
     if command -v aria2c > /dev/null 2>&1; then
         checked_download_exe="aria2c -c -j 10 -x 10 -s 10 --min-split-size=1M --connect-timeout=600 --timeout=600 -m0"
     elif command -v axel > /dev/null 2>&1; then
         checked_download_exe="axel -n 5 --alternate"
     elif command -v wget > /dev/null 2>&1; then
         checked_download_exe="wget -c"
-    elif command -v curl > /dev/null 2>&1; then
-        if [ "$_quiet" = false ]; then
-            checked_download_exe="curl -# -C - -f -O"
-        else
-            checked_download_exe="curl -s -C - -f -O"
-        fi
     fi
 
-    download_exe=${RUSTUP_DOWNLOADER-"$checked_download_exe"}
+    download_exe=${RUSTUP_DOWNLOADER-${checked_download_exe-$default_download_exe}}
     verbose_say "downlaoder is '$checked_download_exe'"
     if [ ! -n "${download_exe-}" ]; then
         err "not found any downloader: axel aria2c wget curl, or RUSTUP_DOWNLOADER"
@@ -1449,7 +1451,13 @@ check_download_cmd() {
 
 run_downloader() {
     check_download_cmd
-    run $download_exe $1
+    download_from_url=$1
+    echo $download_from_url|grep -q -- "^http"
+    if [ $? -eq 0 ]; then
+        run $download_exe $download_from_url
+    else
+        run $default_download_exe $download_from_url
+    fi
 }
 
 main "$@"
