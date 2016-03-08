@@ -306,6 +306,8 @@ handle_command_line_args() {
     local _disable_sudo=false
 
     for arg in "$@"; do
+	local _unknown_option=0
+
 	case "$arg" in
 	    --save )
 		_save=true
@@ -340,6 +342,10 @@ handle_command_line_args() {
 		exit 0
 		;;
 
+	    *)
+		let "_unknown_option += 1"
+		;;
+
 	esac
 
 	if is_value_arg "$arg" "prefix"; then
@@ -357,6 +363,14 @@ handle_command_line_args() {
 	    # when the channel has not been updated by examining a content
 	    # hash in the update-hash-file
 	    _update_hash_file="$(get_value_arg "$arg")"
+	else
+	    let "_unknown_option += 1"
+	fi
+
+	if [ "$_unknown_option" = 2 ]; then
+	    echo "Unknown option '$arg'"
+	    print_help
+	    exit 1
 	fi
     done
 
