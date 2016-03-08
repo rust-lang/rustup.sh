@@ -1249,11 +1249,11 @@ download_file_and_sig() {
     fi
 
     verbose_say "downloading '$_remote_name' to '$_local_name'"
-    # Invoke curl in a way that will resume if necessary
+    # Invoke downloader in a way that will resume if necessary
     if [ "$_quiet" = false ]; then
-	(run cd "$_local_dirname" && run curl -# -C - -f -O "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name" "$_quiet")
     else
-	(run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_name")
+	(run cd "$_local_dirname" && run_downloader "$_remote_name" "$_quiet")
     fi
     if [ $? != 0 ]; then
 	say_err "couldn't download '$_remote_name'"
@@ -1431,6 +1431,26 @@ assert_cmds() {
     need_cmd printf
     need_cmd touch
     need_cmd id
+}
+
+run_downloader() {
+    local download_from_url=$1
+    local _quiet=$2
+
+    if [ "$_quiet" = false ]; then
+        default_download_exe="curl -# -C - -f -O"
+    else
+        default_download_exe="curl -s -C - -f -O"
+    fi
+
+    download_exe=${RUSTUP_DOWNLOADER-$default_download_exe}
+
+    echo $download_from_url|grep -q -- "^http"
+    if [ $? -eq 0 ]; then
+        run $download_exe $download_from_url
+    else
+        run $default_download_exe $download_from_url
+    fi
 }
 
 main "$@"
