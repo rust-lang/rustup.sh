@@ -59,8 +59,8 @@
 set -u # Undefined variables are errors
 
 main() {
-    assert_root
     assert_cmds
+    assert_root
     set_globals
     handle_command_line_args "$@"
 }
