@@ -59,6 +59,7 @@
 set -u # Undefined variables are errors
 
 main() {
+    assert_root
     assert_cmds
     set_globals
     handle_command_line_args "$@"
@@ -1922,6 +1923,13 @@ abs_path() {
     # and triggers 'cd' to print the path to stdout. Route `cd`'s output to /dev/null
     # for good measure.
     (unset CDPATH && cd "$_path" > /dev/null && pwd)
+}
+
+# you need to be root to use rustup.sh
+assert_root() {
+    if [ `id -u` != 0 ]; then
+        err "You need root permissions to install Rust. Please run with 'sudo'."
+    fi
 }
 
 assert_cmds() {
