@@ -1731,7 +1731,7 @@ download_checksum_for() {
     verbose_say "download work dir: $_workdir"
 
     verbose_say "downloading '$_remote_sums' to '$_workdir'"
-    (run cd "$_workdir" && run curl -s -f -O "$_remote_sums")
+    (run cd "$_workdir" && retry curl -s -f -O "$_remote_sums")
     if [ $? != 0 ]; then
         say_err "couldn't download checksum file '$_remote_sums'"
         ignore rm -R "$_workdir"
@@ -1777,7 +1777,7 @@ download_file_and_sig() {
     fi
 
     verbose_say "downloading '$_remote_sig' to '$_local_sig'"
-    (run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_sig")
+    (run cd "$_local_dirname" && retry curl -s -C - -f -O "$_remote_sig")
     if [ $? != 0 ]; then
         say_err "couldn't download signature file '$_remote_sig'"
         return 1
@@ -1796,9 +1796,9 @@ download_file_and_sig() {
     verbose_say "downloading '$_remote_name' to '$_local_name'"
     # Invoke curl in a way that will resume if necessary
     if [ "$_quiet" = false ]; then
-        (run cd "$_local_dirname" && run curl -# -C - -f -O "$_remote_name")
+        (run cd "$_local_dirname" && retry curl -# -C - -f -O "$_remote_name")
     else
-        (run cd "$_local_dirname" && run curl -s -C - -f -O "$_remote_name")
+        (run cd "$_local_dirname" && retry curl -s -C - -f -O "$_remote_name")
     fi
     if [ $? != 0 ]; then
         say_err "couldn't download '$_remote_name'"
@@ -1946,6 +1946,21 @@ ensure() {
 # as part of error handling.
 ignore() {
     run "$@"
+}
+
+# Runs a command and tries again until it succeeds.
+# Use this for network downloads to handle temporary errors.
+retry() {
+    until "$@"
+    do
+        say "command failed, retrying: $*"
+        sleep 0.5 # rate limit (2 per second)
+    done
+    local _retval="$?"
+    if [ $_retval != 0 ]; then # only happens if user aborts
+        say_err "command failed: $*"
+    fi
+    return $_retval
 }
 
 # Runs a command and prints it to stderr if it fails.
